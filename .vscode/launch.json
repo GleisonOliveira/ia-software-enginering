@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "attach",
+      "name": "Attach to Server",
+      "port": 9229,
+      "sourceMaps": true,
+      "restart": true,
+      "localRoot": "${workspaceFolder}/langchain-01/src",
+      "remoteRoot": "${workspaceFolder}/langchain-01/src"
+    }
+  ]
+}
