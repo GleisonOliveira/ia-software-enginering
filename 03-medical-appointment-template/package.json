@@ -5,14 +5,14 @@
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
-    "start": "node --env-file .env src/index.ts",
-    "dev": "node --watch --inspect --env-file .env src/index.ts",
-    "test": "node --env-file .env --test tests/**/*.test.ts",
-    "test:dev": "node --inspect --env-file .env --test --watch tests/**/*.test.ts",
-    "test:unit:dev": "node --inspect --test --watch tests/**/*unit.test.ts",
-    "test:unit": "node --inspect --test tests/**/*unit.test.ts",
-    "test:e2e:dev": "node --inspect --env-file .env --test --watch tests/**/*e2e.test.ts",
-    "test:e2e": "node --inspect --env-file .env --test tests/**/*e2e.test.ts",
+    "start": "node --env-file .env --import tsx src/index.ts",
+    "dev": "node --watch --inspect --env-file .env --import tsx src/index.ts",
+    "test": "node --env-file .env --import tsx --test tests/**/*.test.ts",
+    "test:dev": "node --inspect --env-file .env --import tsx --test --watch tests/**/*.test.ts",
+    "test:unit:dev": "node --inspect --import tsx --test --watch tests/**/*unit.test.ts",
+    "test:unit": "node --inspect --import tsx --test tests/**/*unit.test.ts",
+    "test:e2e:dev": "node --inspect --env-file .env --import tsx --test --watch tests/**/*e2e.test.ts",
+    "test:e2e": "node --inspect --env-file .env --import tsx --test tests/**/*e2e.test.ts",
     "langgraph:serve": "npx @langchain/langgraph-cli dev"
   },
   "keywords": [
@@ -32,9 +32,10 @@
     "langchain": "^1.4.2"
   },
   "devDependencies": {
-    "@types/node": "^24.10.12"
+    "@types/node": "^24.10.12",
+    "tsx": "^4.22.4"
   },
   "engines": {
-    "node": ">=24.10.0"
+    "node": ">=22.0.0"
   }
 }

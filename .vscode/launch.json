@@ -10,6 +10,16 @@
       "restart": true,
       "localRoot": "${workspaceFolder}/langchain-01/src",
       "remoteRoot": "${workspaceFolder}/langchain-01/src"
+    },
+    {
+      "type": "node",
+      "request": "attach",
+      "name": "Attach to Medical Appointment",
+      "port": 9229,
+      "sourceMaps": true,
+      "restart": true,
+      "localRoot": "${workspaceFolder}/03-medical-appointment-template/src",
+      "remoteRoot": "${workspaceFolder}/03-medical-appointment-template/src"
     }
   ]
 }

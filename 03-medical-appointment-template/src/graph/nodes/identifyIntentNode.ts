@@ -1,21 +1,46 @@
-import type { GraphState } from '../graph.ts';
+import {
+  getSystemPrompt,
+  getUserPromptTemplate,
+  IntentSchema,
+} from "../../prompts/v1/identifyIntent.js";
+import { professionals } from "../../services/appointmentService.js";
+import { OpenRouterService } from "../../services/openRouterService.js";
+import type { GraphState } from "../graph.ts";
 
-export function createIdentifyIntentNode() {
-  return async (state: GraphState): Promise<GraphState> => {
-    console.log(`🔍 Identifying intent...`);
-   const input = state.messages.at(-1)!.text;
+export function createIdentifyIntentNode(llmClient: OpenRouterService) {
+  return async (state: GraphState): Promise<Partial<GraphState>> => {
+    console.log(`🔍 Identifying intent...`, llmClient);
+    const input = state.messages.at(-1)!.text;
 
     try {
+      const systemPrompt = getSystemPrompt(professionals);
+      const userPrompt = getUserPromptTemplate(input);
+      const result = await llmClient.generateStructured(
+        systemPrompt,
+        userPrompt,
+        IntentSchema,
+      );
+
+      if (!result.success) {
+        return {
+          intent: "unknown",
+          error: result.error,
+        };
+      }
 
       return {
         ...state,
+        ...result.data,
       };
     } catch (error) {
-      console.error('❌ Error in identifyIntent node:', error);
+      console.error("❌ Error in identifyIntent node:", error);
       return {
         ...state,
-        intent: 'unknown',
-        error: error instanceof Error ? error.message : 'Intent identification failed',
+        intent: "unknown",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Intent identification failed",
       };
     }
   };
