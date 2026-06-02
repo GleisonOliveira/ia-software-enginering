@@ -20,7 +20,7 @@ export class OpenRouterService {
       model: this.config.models[0],
       temperature: this.config.temperature,
       configuration: {
-        baseURL: "https://openrouter.ai/api/v1",
+        baseURL: config.baseURL,
         defaultHeaders: {
           "HTTP-Referer": this.config.httpReferer,
           "X-Title": this.config.xTitle,
