@@ -40,9 +40,9 @@ export function buildAppointmentGraph(
     stateSchema: AppointmentStateAnnotation,
   })
     .addNode("identifyIntent", createIdentifyIntentNode(llmClient))
-    .addNode("schedule", createSchedulerNode())
-    .addNode("cancel", createCancellerNode())
-    .addNode("message", createMessageGeneratorNode())
+    .addNode("schedule", createSchedulerNode(appointmentService))
+    .addNode("cancel", createCancellerNode(appointmentService))
+    .addNode("message", createMessageGeneratorNode(llmClient))
 
     // Flow
     .addEdge(START, "identifyIntent")
@@ -55,7 +55,6 @@ export function buildAppointmentGraph(
           return "message";
         }
 
-        console.log(`➡️  Routing based on intent: ${state.intent}`);
         return state.intent;
       },
       {

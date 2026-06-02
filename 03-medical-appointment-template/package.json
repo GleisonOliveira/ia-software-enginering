@@ -7,12 +7,8 @@
   "scripts": {
     "start": "node --env-file .env --import tsx src/index.ts",
     "dev": "node --watch --inspect --env-file .env --import tsx src/index.ts",
-    "test": "node --env-file .env --import tsx --test tests/**/*.test.ts",
-    "test:dev": "node --inspect --env-file .env --import tsx --test --watch tests/**/*.test.ts",
-    "test:unit:dev": "node --inspect --import tsx --test --watch tests/**/*unit.test.ts",
-    "test:unit": "node --inspect --import tsx --test tests/**/*unit.test.ts",
-    "test:e2e:dev": "node --inspect --env-file .env --import tsx --test --watch tests/**/*e2e.test.ts",
-    "test:e2e": "node --inspect --env-file .env --import tsx --test tests/**/*e2e.test.ts",
+    "test:jest": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:jest:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
     "langgraph:serve": "npx @langchain/langgraph-cli dev"
   },
   "keywords": [
@@ -32,7 +28,11 @@
     "langchain": "^1.4.2"
   },
   "devDependencies": {
+    "@jest/globals": "^30.4.1",
+    "@types/jest": "^30.0.0",
     "@types/node": "^24.10.12",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.11",
     "tsx": "^4.22.4"
   },
   "engines": {

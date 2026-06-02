@@ -9,7 +9,6 @@ import type { GraphState } from "../graph.ts";
 
 export function createIdentifyIntentNode(llmClient: OpenRouterService) {
   return async (state: GraphState): Promise<Partial<GraphState>> => {
-    console.log(`🔍 Identifying intent...`, llmClient);
     const input = state.messages.at(-1)!.text;
 
     try {
@@ -33,7 +32,6 @@ export function createIdentifyIntentNode(llmClient: OpenRouterService) {
         ...result.data,
       };
     } catch (error) {
-      console.error("❌ Error in identifyIntent node:", error);
       return {
         ...state,
         intent: "unknown",
