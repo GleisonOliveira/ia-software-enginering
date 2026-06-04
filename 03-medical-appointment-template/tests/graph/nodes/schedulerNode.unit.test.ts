@@ -98,8 +98,6 @@ describe("createSchedulerNode", () => {
 
     expect(result.actionSuccess).toBe(true);
     expect(result.appointmentData).toEqual(appointmentData);
-    expect(result.patientName).toBe("Maria");
-    expect(result.professionalId).toBe(1);
     expect(mockService.bookAppointment).toHaveBeenCalledWith(
       1,
       new Date("2026-06-10T10:00:00.000Z"),

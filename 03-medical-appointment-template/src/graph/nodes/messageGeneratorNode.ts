@@ -16,8 +16,15 @@ export function createMessageGeneratorNode(llmClient: OpenRouterService) {
     patientName,
     error,
     messages,
+    actionError,
   }: GraphState): Promise<Partial<GraphState>> => {
     try {
+      if (actionError) {
+        return {
+          messages: [...messages, new AIMessage(actionError)],
+        };
+      }
+
       const hasSucceded = actionSuccess ? "success" : "error";
       const scenario = `${intent ?? "unknown"}_${hasSucceded}`;
       const details = {
@@ -35,14 +42,14 @@ export function createMessageGeneratorNode(llmClient: OpenRouterService) {
         MessageSchema,
       );
 
-      if (result.error || !result.data) {
+      if (result.error) {
         return {
           messages: [...messages, new AIMessage("Desculpe, errei.")],
         };
       }
 
       return {
-        messages: [...messages, new AIMessage(result.data.message)],
+        messages: [...messages, new AIMessage(result.data!.response)],
       };
     } catch (error) {
       return {

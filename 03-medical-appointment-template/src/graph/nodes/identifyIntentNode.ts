@@ -28,7 +28,6 @@ export function createIdentifyIntentNode(llmClient: OpenRouterService) {
       }
 
       return {
-        ...state,
         ...result.data,
       };
     } catch (error) {

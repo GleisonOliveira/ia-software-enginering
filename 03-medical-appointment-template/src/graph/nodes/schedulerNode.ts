@@ -33,7 +33,6 @@ export function createSchedulerNode(appointmentService: AppointmentService) {
       );
 
       return {
-        ...state,
         actionSuccess: true,
         appointmentData: appointment,
       };

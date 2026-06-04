@@ -32,7 +32,6 @@ export function createCancellerNode(appointmentService: AppointmentService) {
       );
 
       return {
-        ...state,
         actionSuccess: true,
       };
     } catch (error) {

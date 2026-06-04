@@ -52,14 +52,13 @@ export class OpenRouterService {
 
     try {
       const data = await agent.invoke({ messages });
-      1;
 
       return {
         success: true,
         data: data.structuredResponse,
       };
     } catch (error) {
-      console.error(error);
+      console.error("❤️❤️❤️", error, userPrompt);
 
       return {
         success: false,

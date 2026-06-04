@@ -88,8 +88,6 @@ describe("createCancellerNode", () => {
     const result = await node(validState);
 
     expect(result.actionSuccess).toBe(true);
-    expect(result.patientName).toBe("Maria");
-    expect(result.professionalId).toBe(1);
     expect(mockService.cancelAppointment).toHaveBeenCalledWith(
       1,
       "Maria",

@@ -29,7 +29,8 @@ describe("createMessageGeneratorNode", () => {
 
   it("should append generated message on success", async () => {
     const mockData: MessageResponse = {
-      message: "Sua consulta foi agendada com sucesso!",
+      response: "Sua consulta foi agendada com sucesso!",
+      language: "pt-BR",
     };
 
     const mockLLM = {
@@ -50,7 +51,7 @@ describe("createMessageGeneratorNode", () => {
     const result = await node(state);
 
     expect(result.messages).toHaveLength(2);
-    expect(result.messages![1]).toHaveProperty("content", mockData.message);
+    expect(result.messages![1]).toHaveProperty("content", mockData.response);
     expect(mockLLM.generateStructured).toHaveBeenCalledTimes(1);
   });
 
@@ -92,7 +93,10 @@ describe("createMessageGeneratorNode", () => {
     const result = await node(state);
 
     expect(result.messages).toHaveLength(2);
-    expect(result.messages![1]).toHaveProperty("content", "Desculpe, errei.");
+    expect(result.messages![1]).toHaveProperty(
+      "content",
+      "An error occurred while processing your request.",
+    );
     expect(mockLLM.generateStructured).toHaveBeenCalledTimes(1);
   });
 

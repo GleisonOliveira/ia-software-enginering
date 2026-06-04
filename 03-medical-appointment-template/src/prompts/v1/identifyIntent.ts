@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 
 export const IntentSchema = z.object({
   intent: z.enum(["schedule", "cancel", "unknown"]).describe("The user intent"),
