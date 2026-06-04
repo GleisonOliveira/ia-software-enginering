@@ -36,7 +36,8 @@ export const config: ModelConfig = {
   models: [
     // 'qwen/qwen3-coder-next',
     // https://openrouter.ai/models?fmt=cards&max_price=0&order=throughput-high-to-low&supported_parameters=structured_outputs%2Cresponse_format
-    "openprovider/auto-free",
+    // "openprovider/auto-free",
+    "openrouter/owl-alpha",
     // 'gpt-oss-120b:free',
   ],
   provider: {

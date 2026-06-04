@@ -20,6 +20,16 @@
       "restart": true,
       "localRoot": "${workspaceFolder}/03-medical-appointment-template/src",
       "remoteRoot": "${workspaceFolder}/03-medical-appointment-template/src"
+    },
+    {
+      "type": "node",
+      "request": "attach",
+      "name": "Attach to Songs recommendation",
+      "port": 9229,
+      "sourceMaps": true,
+      "restart": true,
+      "localRoot": "${workspaceFolder}/04-song-highlights-template/src",
+      "remoteRoot": "${workspaceFolder}/04-song-highlights-template/src"
     }
   ]
 }

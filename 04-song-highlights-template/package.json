@@ -12,7 +12,9 @@
     "dev": "node --watch --inspect --env-file .env --import tsx src/index.ts",
     "test:jest": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:jest:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
-    "langgraph:serve": "npx @langchain/langgraph-cli dev"
+    "langgraph:serve": "npx @langchain/langgraph-cli dev",
+    "chat:erickwendel": "node --experimental-strip-types --env-file .env src/index.ts --user erickwendel",
+    "chat:ana": "node --experimental-strip-types --env-file .env src/index.ts --user ana"
   },
   "keywords": [
     "langchain",
