@@ -1,5 +1,5 @@
 import type { Runtime } from "@langchain/langgraph";
-import { OpenRouterService } from "../../services/openrouterService.ts";
+import { type OpenRouterService } from "../../services/openrouterService.ts";
 import type { GraphState } from "../graph.ts";
 import {
   ChatResponseSchema,
@@ -7,13 +7,22 @@ import {
   getUserPromptTemplate,
 } from "../../prompts/v1/chatResponse.ts";
 import { AIMessage, HumanMessage } from "langchain";
+import { type PreferencesService } from "../../services/preferencesService.ts";
 
-export function createChatNode(llmClient: OpenRouterService) {
+export function createChatNode(
+  llmClient: OpenRouterService,
+  preferencesService: PreferencesService,
+) {
   return async (
     state: GraphState,
     runtime?: Runtime,
   ): Promise<Partial<GraphState>> => {
-    const userContext = "";
+    const userId = String(
+      runtime?.context?.userId || state.userId || "unknowm",
+    );
+
+    const userContext =
+      state.userContext ?? (await preferencesService.getBasicInfo(userId));
     const systemPrompt = getSystemPrompt(userContext);
     const conversationHistory = state.messages
       .map(
@@ -41,11 +50,12 @@ export function createChatNode(llmClient: OpenRouterService) {
     }
 
     const { message, shouldSavePreferences, preferences } = result.data;
+    const needsSummarization = state.messages.length >= 6;
 
     return {
       messages: [new AIMessage(message)],
       extractedPreferences: shouldSavePreferences ? preferences : undefined,
-      needsSummarization: false,
+      needsSummarization,
     };
   };
 }

@@ -1,11 +1,13 @@
 import { describe, it, expect, jest, beforeEach } from "@jest/globals";
 import { AIMessage, HumanMessage } from "langchain";
-import { createChatNode } from "../src/graph/nodes/chatNode.ts";
-import { OpenRouterService } from "../src/services/openrouterService.ts";
-import type { GraphState } from "../src/graph/graph.ts";
+import { createChatNode } from "../../../src/graph/nodes/chatNode.ts";
+import type { OpenRouterService } from "../../../src/services/openrouterService.ts";
+import type { PreferencesService } from "../../../src/services/preferencesService.ts";
+import type { GraphState } from "../../../src/graph/graph.ts";
 
 function createState(
   messages: Array<{ role: "user" | "ai"; content: string }>,
+  overrides?: Partial<GraphState>,
 ): GraphState {
   return {
     messages: messages.map((msg) =>
@@ -13,11 +15,14 @@ function createState(
         ? new HumanMessage(msg.content)
         : new AIMessage(msg.content),
     ),
+    userId: "test-user",
+    ...overrides,
   };
 }
 
 describe("createChatNode", () => {
   let mockLLMClient: jest.Mocked<OpenRouterService>;
+  let mockPreferencesService: jest.Mocked<PreferencesService>;
   let chatNode: ReturnType<typeof createChatNode>;
 
   beforeEach(() => {
@@ -25,7 +30,13 @@ describe("createChatNode", () => {
       generateStructured: jest.fn(),
     } as unknown as jest.Mocked<OpenRouterService>;
 
-    chatNode = createChatNode(mockLLMClient);
+    mockPreferencesService = {
+      getBasicInfo: jest
+        .fn<(userId: string) => Promise<string | undefined>>()
+        .mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<PreferencesService>;
+
+    chatNode = createChatNode(mockLLMClient, mockPreferencesService);
   });
 
   it("deve retornar mensagem de sucesso quando generateStructured retorna dados válidos com preferências", async () => {
