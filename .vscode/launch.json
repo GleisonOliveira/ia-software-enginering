@@ -30,6 +30,16 @@
       "restart": true,
       "localRoot": "${workspaceFolder}/04-song-highlights-template/src",
       "remoteRoot": "${workspaceFolder}/04-song-highlights-template/src"
+    },
+    {
+      "type": "node",
+      "request": "attach",
+      "name": "Attach to Students report",
+      "port": 9229,
+      "sourceMaps": true,
+      "restart": true,
+      "localRoot": "${workspaceFolder}/06-rag-neo4j-students-template/src",
+      "remoteRoot": "${workspaceFolder}/06-rag-neo4j-students-template/src"
     }
   ]
 }
