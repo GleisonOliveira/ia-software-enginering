@@ -30,7 +30,7 @@ export function createQueryPlannerNode(llmClient: OpenRouterService) {
 
       if (requiresDecomposition && subQuestions.length) {
         return {
-          isMultiStep: true,
+          isMultiStep: false,
           subQuestions,
           currentStep: 0,
           subQueries: [],
