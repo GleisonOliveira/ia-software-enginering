@@ -1,14 +1,13 @@
 export const config = {
-  apiKey: process.env.OPENROUTER_API_KEY!,
-  httpReferer: '',
-  xTitle: 'IA Devs - Sales Analytics Reporter',
-  models: [
-    'arcee-ai/trinity-large-preview:free',
-  ],
+  baseURL: process.env.BASE_URL,
+  apiKey: process.env.API_KEY!,
+  httpReferer: "",
+  xTitle: "IA Devs - Sales Analytics Reporter",
+  models: ["openrouter/owl-alpha"],
   provider: {
     sort: {
-      by: 'throughput', // Route to model with highest throughput (fastest response)
-      partition: 'none',
+      by: "throughput", // Route to model with highest throughput (fastest response)
+      partition: "none",
     },
   },
   temperature: 0.7,
@@ -21,5 +20,4 @@ export const config = {
   maxSubQuestions: 3,
 };
 
-
-export default config
+export default config;

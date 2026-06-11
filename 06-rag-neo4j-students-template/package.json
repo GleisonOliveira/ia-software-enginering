@@ -16,7 +16,8 @@
     "docker:infra:up": "docker compose up -d --wait",
     "docker:infra:down": "docker compose down",
     "docker:infra:cleanup": "docker compose down --volumes --remove-orphans && rm -rf storage",
-    "docker:infra:logs": "docker compose logs -f"
+    "docker:infra:logs": "docker compose logs -f",
+    "test:jest": "node --experimental-vm-modules node_modules/.bin/jest"
   },
   "keywords": [
     "langchain",
@@ -37,7 +38,10 @@
   },
   "devDependencies": {
     "@faker-js/faker": "^9.4.0",
+    "@types/jest": "^30.0.0",
     "@types/node": "^22.10.12",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.11",
     "tsx": "^4.22.4",
     "typescript": "^5.3.0"
   },
