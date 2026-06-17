@@ -1,3 +1,4 @@
+import config from "../../config.ts";
 import { Neo4jService } from "../../services/neo4jService.ts";
 import type { GraphState } from "../graph.ts";
 
@@ -33,20 +34,62 @@ async function executeQuery(query: string, neo4jService: Neo4jService) {
   }
 }
 
+function handleMultiStepProgression(state: GraphState, results: any[]) {
+  const updatedSubResults = [...(state.subResults ?? []), ...results];
+
+  const nextStep = (state.currentStep ?? 0) + 1;
+  const multiStepState = {
+    dbResults: results,
+    subResults: updatedSubResults,
+    currentStep: nextStep,
+    needsCorrection: false,
+  };
+
+  return multiStepState;
+}
+
 export function createCypherExecutorNode(neo4jService: Neo4jService) {
   return async (state: GraphState): Promise<Partial<GraphState>> => {
     try {
       const { results, error } = await executeQuery(state.query!, neo4jService);
 
       if (error && results === null) {
+        if ((state.correctionAttempts ?? 0) < config.maxCorrectionAttempts) {
+          return {
+            validationError: error,
+            originalQuery: state.originalQuery ?? state.query,
+            needsCorrection: true,
+          };
+        }
+
         return {
           ...state,
           error: "Invalid Cypher query - correction failed",
         };
       }
 
+      if (
+        state.isMultiStep &&
+        state.subQuestions?.length &&
+        state.currentStep !== undefined
+      ) {
+        const multiStepState = handleMultiStepProgression(state, results!);
+        return {
+          ...multiStepState,
+        };
+      }
+
+      if (!results?.length) {
+        return {
+          dbResults: [],
+          error: "No results found",
+        };
+      }
+
       return {
         ...state,
+        dbResults: results,
+        needsCorrection: false,
       };
     } catch (error) {
       return {

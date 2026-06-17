@@ -1,23 +1,51 @@
-import { Neo4jService } from "../../services/neo4jService.ts";
+import {
+  CypherValidatorSchema,
+  getSystemPrompt,
+  getUserPromptTemplate,
+} from "../../prompts/v1/cypherValidator.ts";
 import { type OpenRouterService } from "../../services/openrouterService.ts";
 import type { GraphState } from "../graph.ts";
 
-async function executeQuery(query: string, neo4jService: Neo4jService) {
-  try {
-    const isValid = neo4jService.validateQuery(query);
-  } catch (error) {}
-}
-
 export function createCypherValidatorNode(llmClient: OpenRouterService) {
-  return async (state: GraphState): Promise<Partial<GraphState>> => {
+  return async ({ query }: GraphState): Promise<Partial<GraphState>> => {
     try {
+      if (!query) {
+        return {
+          secure: true,
+        };
+      }
+
+      const systemPrompt = getSystemPrompt();
+      const userPrompt = getUserPromptTemplate(query);
+
+      const result = await llmClient.generateStructured(
+        systemPrompt,
+        userPrompt,
+        CypherValidatorSchema,
+      );
+
+      if (!result.success) {
+        return {
+          secure: false,
+          error: "Query can not be validated",
+        };
+      }
+
+      const { analysis, secure } = result.data;
+
+      if (!secure) {
+        return {
+          secure: false,
+          error: analysis,
+        };
+      }
+
       return {
-        ...state,
+        secure: true,
       };
     } catch (error) {
       return {
-        ...state,
-        error: "Invalid Cypher query - correction failed",
+        error: "Query can not be validated",
       };
     }
   };

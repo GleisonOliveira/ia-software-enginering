@@ -14,6 +14,7 @@ import { createQueryPlannerNode } from "./nodes/queryPlannerNode.ts";
 import { createAnalyticalResponseNode } from "./nodes/analyticalResponseNode.ts";
 import { createExtractQuestionNode } from "./nodes/extractQuestionNode.ts";
 import { createCypherValidatorNode } from "./nodes/cypherValidatorNode.ts";
+import { createInsecureQueryResponseNode } from "./nodes/insecureQueryResponseNode.ts";
 
 const SalesStateAnnotation = z.object({
   // Input
@@ -72,14 +73,16 @@ export function buildSalesGraph(
       createCypherCorrectionNode(llmClient, neo4jService),
     )
     .addNode("analyticalResponse", createAnalyticalResponseNode(llmClient))
+    .addNode(
+      "insecureQueryResponse",
+      createInsecureQueryResponseNode(llmClient),
+    )
 
     .addEdge(START, "extractQuestion")
-
     .addConditionalEdges("extractQuestion", (state: GraphState) => {
       if (state.error) return END;
       return "queryPlanner";
     })
-
     .addEdge("queryPlanner", "cypherGenerator")
     .addEdge("cypherGenerator", "queryValidator")
     .addConditionalEdges("queryValidator", (state: GraphState) => {
@@ -87,7 +90,7 @@ export function buildSalesGraph(
         return "cypherExecutor";
       }
 
-      return "analyticalResponse";
+      return "insecureQueryResponse";
     })
 
     .addConditionalEdges("cypherExecutor", (state: GraphState) => {
@@ -112,7 +115,8 @@ export function buildSalesGraph(
     })
 
     .addEdge("cypherCorrection", "cypherExecutor")
-    .addEdge("analyticalResponse", END);
+    .addEdge("analyticalResponse", END)
+    .addEdge("insecureQueryResponse", END);
 
   return workflow.compile();
 }
