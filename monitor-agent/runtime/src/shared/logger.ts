@@ -172,12 +172,4 @@ export class Logger {
   }
 }
 
-/**
- * Singleton root logger instance.
- *
- * Shared across the runtime for general logging. Phase-specific loggers
- * should be created via logger.child("phaseName") for per-phase output.
- *
- * Used by: Contract loader, state manager, any module needing general logging.
- */
-export const logger = new Logger("info");
+

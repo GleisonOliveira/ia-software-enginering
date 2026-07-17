@@ -11,8 +11,8 @@ import { jest } from "@jest/globals";
 import { Logger } from "../../src/shared/logger.js";
 
 describe("Logger", () => {
-  let stdoutWriteSpy: jest.SpyInstance;
-  let stderrWriteSpy: jest.SpyInstance;
+  let stdoutWriteSpy: ReturnType<typeof jest.spyOn>;
+  let stderrWriteSpy: ReturnType<typeof jest.spyOn>;
 
   beforeEach(() => {
     stdoutWriteSpy = jest.spyOn(process.stdout, "write").mockImplementation(() => true);

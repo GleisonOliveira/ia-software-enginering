@@ -73,78 +73,76 @@ const PROVIDER_DEFAULT_URLS: Record<z.infer<typeof ProviderSchema>, string> = {
 };
 
 /**
- * Loaded environment cache to avoid re-reading process.env on every call.
- *
- * Set once during loadEnv() and immutable thereafter. This prevents
- * race conditions if loadEnv were called concurrently (unlikely but safe).
- */
-let cachedEnv: LlmEnv | undefined;
-
-/**
  * Loads and validates environment variables using dotenv and Zod.
  *
  * Reads .env from the project root, applies provider-specific defaults
  * for LLM_BASE_URL when empty, and returns the validated configuration.
  * Caches the result so subsequent calls return the same object.
  *
- * @param envPath - Optional explicit path to the .env file.
- *   When omitted, auto-detects from the project root.
- * @returns The validated and typed environment configuration.
+ * Implements the EnvLoader interface consumed by LlmConfigResolver.
  *
  * Used by: LLM client initialization, tool builder, cycle runner startup.
  */
-export function loadEnv(envPath?: string): LlmEnv {
-  if (cachedEnv) return cachedEnv;
+export class EnvLoader {
+  /** Loaded environment cache to avoid re-reading process.env on every call. */
+  private cachedEnv: LlmEnv | undefined;
 
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
+  /**
+   * Loads and validates environment variables using dotenv and Zod.
+   *
+   * @param envPath - Optional explicit path to the .env file.
+   *   When omitted, auto-detects from the project root.
+   * @returns The validated and typed environment configuration.
+   */
+  loadEnv(envPath?: string): LlmEnv {
+    if (this.cachedEnv) return this.cachedEnv;
 
-  // Resolve .env path: explicit > project root > current directory
-  const resolvedPath = envPath ?? path.resolve(__dirname, "../../.env");
-  dotenv.config({ path: resolvedPath });
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
 
-  // Validate process.env through Zod, applying defaults for missing values
-  const parsed = LlmEnvSchema.safeParse(process.env);
+    // Resolve .env path: explicit > project root > current directory
+    const resolvedPath = envPath ?? path.resolve(__dirname, "../../.env");
+    dotenv.config({ path: resolvedPath });
 
-  if (!parsed.success) {
-    const issues = parsed.error.issues.map((i) => `  ${i.path.join(".")}: ${i.message}`).join("\n");
-    throw new Error(`Invalid environment configuration:\n${issues}`);
+    // Validate process.env through Zod, applying defaults for missing values
+    const parsed = LlmEnvSchema.safeParse(process.env);
+
+    if (!parsed.success) {
+      const issues = parsed.error.issues.map((i) => `  ${i.path.join(".")}: ${i.message}`).join("\n");
+      throw new Error(`Invalid environment configuration:\n${issues}`);
+    }
+
+    const env = parsed.data;
+
+    // Apply provider-specific default URL when LLM_BASE_URL is empty
+    if (env.LLM_BASE_URL === "") {
+      env.LLM_BASE_URL = PROVIDER_DEFAULT_URLS[env.LLM_PROVIDER];
+    }
+
+    this.cachedEnv = env;
+    return this.cachedEnv;
   }
 
-  const env = parsed.data;
-
-  // Apply provider-specific default URL when LLM_BASE_URL is empty
-  if (env.LLM_BASE_URL === "") {
-    env.LLM_BASE_URL = PROVIDER_DEFAULT_URLS[env.LLM_PROVIDER];
+  /**
+   * Returns the provider-specific default base URL for a given provider.
+   *
+   * Useful when explicitly constructing a provider client without
+   * relying on load() caching behavior.
+   *
+   * @param provider - The LLM provider identifier.
+   * @returns The default API base URL for that provider.
+   */
+  getProviderDefaultUrl(provider: z.infer<typeof ProviderSchema>): string {
+    return PROVIDER_DEFAULT_URLS[provider];
   }
 
-  cachedEnv = env;
-  return cachedEnv;
-}
-
-/**
- * Returns the provider-specific default base URL for a given provider.
- *
- * Useful when explicitly constructing a provider client without
- * relying on loadEnv() caching behavior.
- *
- * @param provider - The LLM provider identifier.
- * @returns The default API base URL for that provider.
- *
- * Used by: LLM provider config resolution.
- */
-export function getProviderDefaultUrl(provider: z.infer<typeof ProviderSchema>): string {
-  return PROVIDER_DEFAULT_URLS[provider];
-}
-
-/**
- * Clears the cached environment configuration.
- *
- * Intended for testing only — allows re-reading environment variables
- * after mocking process.env in test suites.
- *
- * Used by: Unit tests that need to test different env configurations.
- */
-export function resetEnvCache(): void {
-  cachedEnv = undefined;
+  /**
+   * Clears the cached environment configuration.
+   *
+   * Intended for testing only — allows re-reading environment variables
+   * after mocking process.env in test suites.
+   */
+  resetCache(): void {
+    this.cachedEnv = undefined;
+  }
 }

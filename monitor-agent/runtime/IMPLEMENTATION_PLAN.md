@@ -1,9 +1,9 @@
 # Implementation Plan — Runtime TypeScript
 
-> **Status:** PENDING
+> **Status:** IN PROGRESS
 > **Created:** 2026-07-15
 > **Target:** `monitor-agent/runtime/`
-> **Last Updated:** 2026-07-15
+> **Last Updated:** 2026-07-17
 
 ## Overview
 
@@ -13,9 +13,32 @@ Conversion of the Python AI agent execution runtime to TypeScript with:
 - Zod schema validation
 - Dependency injection via classes
 - Strong typing (no `any`)
-- Jest unit tests
+- Jest unit tests (one test file per source file)
 - ESLint + Prettier
 - Node 20+ compatibility
+
+### OOP Requirement (Strict)
+
+**All runtime logic must be implemented inside classes.** Standalone exported functions are forbidden.
+
+- Every domain module (executor, planner, tools, llm, etc.) must export a **class**, not standalone functions.
+- Pure utility logic (validators, builders, formatters) must be private or static methods inside a class — never exported as top-level functions.
+- Classes must receive dependencies via **constructor injection**, not via module-level singletons or global state.
+- Each class must have a single, well-defined responsibility (Single Responsibility Principle).
+- The only exceptions are:
+  - `*.types.ts` files (type-only, no runtime logic)
+  - Zod schema definitions in `schemas.ts` (constant exports, not functions)
+  - `src/types/index.ts` (re-export barrel)
+
+### Test-per-File Requirement
+
+**Every `.ts` source file must have a corresponding `.test.ts` file.** No exceptions (excluding type-only files).
+
+- For each `src/<domain>/<name>.ts` → there must be `tests/<domain>/<name>.test.ts`
+- Type-only files (`*.types.ts`) and barrel re-exports (`index.ts`) are exempt.
+- Zod schema files (`schemas.ts`) must have tests verifying schema validation behavior.
+- All external dependencies (LLM providers, filesystem, network) must be mocked in tests.
+- Tests run via `npm test` (Jest with `--experimental-vm-modules` for ESM).
 
 ### Key Architectural Decision: Multi-Provider LLM Support
 
@@ -48,15 +71,18 @@ All TypeScript code in this project **must** include comments explaining **what*
 - Every `.ts` file must begin with a block comment (`/** ... */`) describing the module's purpose and responsibility.
 - Include which domain it belongs to (core, llm, executor, tools, planner, telemetry, cli).
 
-### Function/method/type comments
+### Class/method/type comments
 
-- Every exported function, method, type alias, and interface must have a JSDoc comment explaining:
-  - **What** it does/is (brief description)
-  - **Why** this approach was chosen (design rationale when non-obvious)
+- Every exported class must have a JSDoc comment explaining:
+  - **What** it does (brief description)
+  - **Why** this class exists and was designed this way
   - **Where** it is used and in what context (e.g., "Used by: cycle runner, planner")
-  - `@param` tags for all parameters (functions/methods)
-  - `@returns` description (functions/methods)
-  - `@typeParam` for generic type parameters
+- Every constructor must document its injected dependencies via `@param` tags.
+- Every public method must have a JSDoc comment with:
+  - **What** it does (brief description)
+  - **Why** this approach was chosen (design rationale when non-obvious)
+  - `@param` tags for all parameters
+  - `@returns` description
 - For type aliases and interfaces, document each field with a brief inline comment if the name alone is not self-explanatory.
 
 ### Inline comments
@@ -71,23 +97,32 @@ All TypeScript code in this project **must** include comments explaining **what*
 - The agent contracts (YAML `.md` files) define _what_ the system should do; comments in code explain _how_ and _why_ it is implemented that way.
 - Future maintainers and AI agents reading the code need context that type signatures alone do not convey.
 
-### Example
+### Example (Class-Based)
 
 ```typescript
 /**
- * Validates the LLM response against available tools before execution.
+ * Validates LLM responses against available tools before execution.
  *
  * Why: The LLM may return invalid tool names or malformed arguments.
  * This circuit breaker prevents runtime errors and enables auto-correction.
- *
- * @param plan - The structured plan returned by the LLM
- * @param availableTools - Set of tool names currently registered
- * @returns List of validation problems (empty = valid)
+ * Used by: CycleRunner, Planner
  */
-function validateLlmResponse(plan: Plan, availableTools: Set<string>): string[] {
-  // Check if proxima_acao is one of the valid action types defined in contracts
-  const validActions = new Set(["CHAMAR_FERRAMENTA", "FINALIZAR", "PERGUNTAR_USUARIO"]);
-  // ...
+class CircuitBreaker {
+  /**
+   * @param availableTools - Set of tool names currently registered in the ToolRegistry
+   */
+  constructor(private readonly availableTools: Set<string>) {}
+
+  /**
+   * Validates a plan and applies auto-correction when possible.
+   * @param plan - The structured plan returned by the LLM
+   * @returns List of validation problems (empty = valid)
+   */
+  validate(plan: Plan): string[] {
+    // Check if proxima_acao is one of the valid action types defined in contracts
+    const validActions = new Set(["CHAMAR_FERRAMENTA", "FINALIZAR", "PERGUNTAR_USUARIO"]);
+    // ...
+  }
 }
 ```
 
@@ -151,6 +186,7 @@ function validateLlmResponse(plan: Plan, availableTools: Set<string>): string[] 
 
 - [x] Create `src/contracts/schemas.ts` (Zod schemas for all contracts)
 - [x] Create `src/contracts/contracts.types.ts` (types derived from Zod schemas)
+- [x] Create `tests/contracts/schemas.test.ts` (verify schema validation behavior)
 
 ### 2.4 Core Types
 
@@ -187,31 +223,36 @@ function validateLlmResponse(plan: Plan, availableTools: Set<string>): string[] 
 
 ### Acceptance Criteria
 
-- [x] `loadYamlFromMd()` extracts YAML from a test `.md` file correctly
-- [x] `loadAllContracts()` loads all 9 contracts from a valid agent_path
-- [x] `createState()` returns an `AgentState` with all required fields populated
-- [x] `loadEnv()` validates variables with Zod and returns defaults for `LLM_BASE_URL`
+- [x] `ContractLoader.loadYamlFromMd()` extracts YAML from a test `.md` file correctly
+- [x] `ContractLoader.loadAllContracts()` loads all 9 contracts from a valid agent_path
+- [x] `StateManager.createState()` returns an `AgentState` with all required fields populated
+- [x] `EnvConfig.load()` validates variables with Zod and returns defaults for `LLM_BASE_URL`
 - [x] Unit tests with mocked provider pass
+- [x] Every source file has a corresponding test file
 
 ### 3.1 Environment
 
-- [x] Create `src/shared/env.ts` (dotenv loading with Zod validation)
+- [x] Create `src/shared/env.ts` — `EnvConfig` class (dotenv loading with Zod validation)
 - [x] Validate `LLM_BASE_URL` env var (provider-specific defaults when empty)
+- [x] Create `tests/shared/env.test.ts`
 
 ### 3.2 Logger
 
-- [x] Create `src/shared/logger.ts` (structured logger replacing print statements)
+- [x] Create `src/shared/logger.ts` — `Logger` class (structured logger replacing print statements)
+- [x] Create `tests/shared/logger.test.ts`
 
 ### 3.3 Contract Loader
 
-- [x] Create `src/contracts/loader.ts` (YAML extraction from .md files)
-- [x] Implement `loadYamlFromMd(filePath)` function
-- [x] Implement `loadAllContracts(agentPath)` function
+- [x] Create `src/contracts/loader.ts` — `ContractLoader` class (YAML extraction from .md files)
+- [x] Implement `loadYamlFromMd(filePath)` method
+- [x] Implement `loadAllContracts(agentPath)` method
+- [x] Create `tests/contracts/loader.test.ts`
 
 ### 3.4 State Manager
 
-- [x] Create `src/core/state.ts` (state creation from contracts)
-- [x] Implement `createState(contracts, input, mode?, event?)` function
+- [x] Create `src/core/state.ts` — `StateManager` class (state creation from contracts)
+- [x] Implement `createState(contracts, input, mode?, event?)` method
+- [x] Create `tests/core/state.test.ts`
 
 ---
 
@@ -219,35 +260,38 @@ function validateLlmResponse(plan: Plan, availableTools: Set<string>): string[] 
 
 ### Acceptance Criteria
 
-- [ ] `LlmClient.callLlm()` returns text and `TokenUsage` with configurable provider via env
-- [ ] `resolveProvider()` selects the correct provider based on `LLM_PROVIDER`
-- [ ] `generateStructuredOutput()` validates LLM output against a Zod schema
-- [ ] Unit tests with mocked provider pass
+- [x] `LlmClient.callLlm()` returns text and `TokenUsage` with configurable provider via env
+- [x] `LlmConfig.resolveProvider()` selects the correct provider based on `LLM_PROVIDER`
+- [x] `StructuredOutputHandler.generate()` validates LLM output against a Zod schema
+- [x] Unit tests with mocked provider pass
+- [x] Every source file has a corresponding test file
 
 ### 4.1 LLM Client (Provider-Agnostic)
 
-- [ ] Create `src/llm/llm-client.ts`
-- [ ] Implement `LlmClient` class wrapping Vercel AI SDK `generateText`
-- [ ] Implement provider auto-detection from env vars
-- [ ] Implement `callLlm(options)` with structured output support via `Output.object()`
-- [ ] Implement token usage extraction from AI SDK response
+- [x] Create `src/llm/llm-client.ts` — `LlmClient` class wrapping Vercel AI SDK `generateText`
+- [x] Implement provider auto-detection from env vars
+- [x] Implement `callLlm(options)` method with structured output support via `Output.object()`
+- [x] Implement token usage extraction from AI SDK response
+- [x] Create `tests/llm/llm-client.test.ts`
 
 ### 4.2 LLM Provider Config
 
-- [ ] Create `src/llm/llm-config.ts`
-- [ ] Implement `resolveProvider()` — reads `LLM_PROVIDER` env, selects provider
-- [ ] Support provider-specific env vars: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY`, etc.
-- [ ] Implement `LLM_BASE_URL` env var — custom endpoint for OpenRouter, local models, proxies
-- [ ] Implement model selection from `LLM_MODEL` env var
-- [ ] Implement token limits from `LLM_MAX_TOKENS` env var
-- [ ] Implement structured output schema conversion (Zod → provider format)
+- [x] Create `src/llm/llm-config.ts` — `LlmConfig` class
+- [x] Implement `resolveProvider()` method — reads `LLM_PROVIDER` env, selects provider
+- [x] Support provider-specific env vars: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY`, etc.
+- [x] Implement `LLM_BASE_URL` env var — custom endpoint for OpenRouter, local models, proxies
+- [x] Implement model selection from `LLM_MODEL` env var
+- [x] Implement token limits from `LLM_MAX_TOKENS` env var
+- [x] Implement structured output schema conversion (Zod → provider format)
+- [x] Create `tests/llm/llm-config.test.ts`
 
 ### 4.3 Structured Output Helpers
 
-- [ ] Create `src/llm/structured-output.ts`
-- [ ] Implement `generateStructuredOutput<T>(schema, prompt, systemPrompt)` using AI SDK `Output.object()`
-- [ ] Implement validation fallback for providers with lower structured output reliability
-- [ ] Implement retry logic with Zod validation error feedback
+- [x] Create `src/llm/structured-output.ts` — `StructuredOutputHandler` class
+- [x] Implement `generate<T>(schema, prompt, systemPrompt)` method using AI SDK `Output.object()`
+- [x] Implement validation fallback for providers with lower structured output reliability
+- [x] Implement retry logic with Zod validation error feedback
+- [x] Create `tests/llm/structured-output.test.ts`
 
 ---
 
@@ -255,33 +299,39 @@ function validateLlmResponse(plan: Plan, availableTools: Set<string>): string[] 
 
 ### Acceptance Criteria
 
-- [ ] `validatePayload()` returns error list for invalid args (empty list for valid args)
-- [ ] `validateLlmResponse()` detects invalid plans and applies auto-correction
-- [ ] `executeTool()` executes a tool and returns `ActionResult`
-- [ ] `evaluate()` returns correct `objetivo_alcancado` and `qualidade`
+- [x] `PayloadValidator.validate()` returns error list for invalid args (empty list for valid args)
+- [x] `CircuitBreaker.validate()` detects invalid plans and applies auto-correction
+- [x] `ToolExecutor.execute()` executes a tool and returns `ActionResult`
+- [x] `Evaluator.evaluate()` returns correct `objetivo_alcancado` and `qualidade`
+- [x] Unit tests with mocked provider pass
+- [x] Every source file has a corresponding test file
 
 ### 5.1 Payload Validator
 
-- [ ] Create `src/executor/payload-validator.ts`
-- [ ] Implement `validatePayload(toolName, args, contracts)` using Zod
+- [x] Create `src/executor/payload-validator.ts` — `PayloadValidator` class
+- [x] Implement `validate(toolName, args, contracts)` method using Zod
+- [x] Create `tests/executor/payload-validator.test.ts`
 
 ### 5.2 Circuit Breaker
 
-- [ ] Create `src/executor/circuit-breaker.ts`
-- [ ] Implement `validateLlmResponse(plan, availableTools)` function
-- [ ] Implement auto-correction and fallback logic
+- [x] Create `src/executor/circuit-breaker.ts` — `CircuitBreaker` class
+- [x] Implement `validate(plan)` method
+- [x] Implement auto-correction and fallback logic
+- [x] Create `tests/executor/circuit-breaker.test.ts`
 
 ### 5.3 Tool Executor
 
-- [ ] Create `src/executor/executor.ts`
-- [ ] Implement `executeTool(toolName, args, tools, contracts)` function
-- [ ] Implement retry logic from contracts
+- [x] Create `src/executor/executor.ts` — `ToolExecutor` class
+- [x] Implement `execute(toolName, args, tools, contracts)` method
+- [x] Implement retry logic from contracts
+- [x] Create `tests/executor/executor.test.ts`
 
 ### 5.4 Evaluator
 
-- [ ] Create `src/executor/evaluator.ts`
-- [ ] Implement `evaluate(plan, actionResult, contracts)` function
-- [ ] Implement output validation against schema
+- [x] Create `src/executor/evaluator.ts` — `Evaluator` class
+- [x] Implement `evaluate(plan, actionResult, contracts)` method
+- [x] Implement output validation against schema
+- [x] Create `tests/executor/evaluator.test.ts`
 
 ---
 
@@ -289,25 +339,30 @@ function validateLlmResponse(plan: Plan, availableTools: Set<string>): string[] 
 
 ### Acceptance Criteria
 
-- [ ] `buildTool()` returns an executable function from a skill definition
-- [ ] `ToolRegistry` allows lookup by tool name
-- [ ] `executeHook()` fires configured hooks
+- [x] `ToolBuilder.build()` returns an executable function from a skill definition
+- [x] `ToolRegistry` allows lookup by tool name
+- [x] `HookExecutor.execute()` fires configured hooks
+- [x] Unit tests with mocked provider pass
+- [x] Every source file has a corresponding test file
 
 ### 6.1 Tool Builder
 
-- [ ] Create `src/tools/tool-builder.ts`
-- [ ] Implement `buildTool(skill)` function
-- [ ] Implement LLM-based tool execution with mock fallback
+- [x] Create `src/tools/tool-builder.ts` — `ToolBuilder` class
+- [x] Implement `build(skill)` method
+- [x] Implement LLM-based tool execution with mock fallback
+- [x] Create `tests/tools/tool-builder.test.ts`
 
 ### 6.2 Tool Registry
 
-- [ ] Create `src/tools/tool-registry.ts`
-- [ ] Implement `ToolRegistry` class for tool lookup
+- [x] Create `src/tools/tool-registry.ts` — `ToolRegistry` class
+- [x] Implement tool lookup by name
+- [x] Create `tests/tools/tool-registry.test.ts`
 
 ### 6.3 Hooks
 
-- [ ] Create `src/tools/hooks.ts`
-- [ ] Implement `executeHook(name, hookContract, params)` function
+- [x] Create `src/tools/hooks.ts` — `HookExecutor` class
+- [x] Implement `execute(name, hookContract, params)` method
+- [x] Create `tests/tools/hooks.test.ts`
 
 ---
 
@@ -315,27 +370,32 @@ function validateLlmResponse(plan: Plan, availableTools: Set<string>): string[] 
 
 ### Acceptance Criteria
 
-- [ ] `buildPerception()` returns a string with entry, mode, and progress info
-- [ ] `buildSystemPrompt()` includes instructions for all modes (interactive, goal_oriented, autonomous)
-- [ ] `callLlm()` returns a valid `Plan` with correct `proxima_acao` type
-- [ ] `mockPlanner()` works without API key
+- [ ] `PerceptionBuilder.build()` returns a string with entry, mode, and progress info
+- [ ] `PromptBuilder.build()` includes instructions for all modes (interactive, goal_oriented, autonomous)
+- [ ] `Planner.plan()` returns a valid `Plan` with correct `proxima_acao` type
+- [ ] `Planner.mockPlan()` works without API key
+- [ ] Unit tests with mocked provider pass
+- [ ] Every source file has a corresponding test file
 
 ### 7.1 Perception Builder
 
-- [ ] Create `src/planner/perception.ts`
-- [ ] Implement `buildPerception(state)` function
+- [ ] Create `src/planner/perception.ts` — `PerceptionBuilder` class
+- [ ] Implement `build(state)` method
+- [ ] Create `tests/planner/perception.test.ts`
 
 ### 7.2 Prompt Builder
 
-- [ ] Create `src/planner/prompt-builder.ts`
-- [ ] Implement `buildSystemPrompt(contracts)` function
+- [ ] Create `src/planner/prompt-builder.ts` — `PromptBuilder` class
+- [ ] Implement `build(contracts)` method
 - [ ] Implement mode-specific instructions (interactive, goal_oriented, autonomous)
+- [ ] Create `tests/planner/prompt-builder.test.ts`
 
 ### 7.3 Planner
 
-- [ ] Create `src/planner/planner.ts`
-- [ ] Implement `callLlm(perception, contracts, history)` using `LlmClient` with structured output
-- [ ] Implement `mockPlanner(perception, contracts, history)` fallback
+- [ ] Create `src/planner/planner.ts` — `Planner` class
+- [ ] Implement `plan(perception, contracts, history)` method using `LlmClient` with structured output
+- [ ] Implement `mockPlan(perception, contracts, history)` fallback
+- [ ] Create `tests/planner/planner.test.ts`
 
 ---
 
@@ -343,16 +403,18 @@ function validateLlmResponse(plan: Plan, availableTools: Set<string>): string[] 
 
 ### Acceptance Criteria
 
-- [ ] `Telemetry` registers events with timestamp and trace_id
-- [ ] `healthMetrics()` returns success rate and counters
-- [ ] `performanceData()` returns phase timing with avg/max/total
+- [ ] `Telemetry.registerEvent()` records events with timestamp and trace_id
+- [ ] `Telemetry.healthMetrics()` returns success rate and counters
+- [ ] `Telemetry.performanceData()` returns phase timing with avg/max/total
+- [ ] Unit tests with mocked provider pass
+- [ ] Every source file has a corresponding test file
 
 ### 8.1 Telemetry Collector
 
-- [ ] Create `src/telemetry/telemetry.ts`
-- [ ] Implement `Telemetry` class
+- [ ] Create `src/telemetry/telemetry.ts` — `Telemetry` class
 - [ ] Implement event registration, phase timing, token tracking
 - [ ] Implement `healthMetrics()`, `performanceData()`, `auditLogs()` methods
+- [ ] Create `tests/telemetry/telemetry.test.ts`
 
 ---
 
@@ -360,23 +422,31 @@ function validateLlmResponse(plan: Plan, availableTools: Set<string>): string[] 
 
 ### Acceptance Criteria
 
-- [ ] `run` executes an agent with `--agente` and `--entrada`
-- [ ] `validate` validates contracts and returns ok/failure
-- [ ] `trace` displays the last trace.json
-- [ ] `analyze` generates `analise-agente.md`
-- [ ] `replay` re-executes with the same input
+- [ ] `RunCommand` executes an agent with `--agente` and `--entrada`
+- [ ] `ValidateCommand` validates contracts and returns ok/failure
+- [ ] `TraceCommand` displays the last trace.json
+- [ ] `AnalyzeCommand` generates `analise-agente.md`
+- [ ] `ReplayCommand` re-executes with the same input
+- [ ] Unit tests with mocked provider pass
+- [ ] Every source file has a corresponding test file
 
 ### 9.1 Entry Point
 
-- [ ] Create `src/cli/index.ts` with Commander.js
+- [ ] Create `src/cli/index.ts` — `CliApp` class wrapping Commander.js
+- [ ] Create `tests/cli/index.test.ts`
 
 ### 9.2 Commands
 
-- [ ] Create `src/cli/commands/run.ts` — run agent
-- [ ] Create `src/cli/commands/validate.ts` — validate contracts
-- [ ] Create `src/cli/commands/trace.ts` — show last trace
-- [ ] Create `src/cli/commands/analyze.ts` — analyze trace
-- [ ] Create `src/cli/commands/replay.ts` — replay last execution
+- [ ] Create `src/cli/commands/run.ts` — `RunCommand` class
+- [ ] Create `tests/cli/run.test.ts`
+- [ ] Create `src/cli/commands/validate.ts` — `ValidateCommand` class
+- [ ] Create `tests/cli/validate.test.ts`
+- [ ] Create `src/cli/commands/trace.ts` — `TraceCommand` class
+- [ ] Create `tests/cli/trace.test.ts`
+- [ ] Create `src/cli/commands/analyze.ts` — `AnalyzeCommand` class
+- [ ] Create `tests/cli/analyze.test.ts`
+- [ ] Create `src/cli/commands/replay.ts` — `ReplayCommand` class
+- [ ] Create `tests/cli/replay.test.ts`
 
 ---
 
@@ -384,24 +454,27 @@ function validateLlmResponse(plan: Plan, availableTools: Set<string>): string[] 
 
 ### Acceptance Criteria
 
-- [ ] `run()` executes the full perceive→plan→act→evaluate cycle
+- [ ] `CycleRunner.run()` executes the full perceive→plan→act→evaluate cycle
 - [ ] Time, token, and stagnation limits interrupt the cycle correctly
-- [ ] `replay()` re-executes with input from the previous trace
+- [ ] `CycleRunner.replay()` re-executes with input from the previous trace
 - [ ] `trace.json` is saved with all telemetry data
 - [ ] KPI panel is displayed after each step
+- [ ] Unit tests with mocked provider pass
+- [ ] Every source file has a corresponding test file
 
 ### 10.1 Main Cycle
 
-- [ ] Create `src/core/cycle.ts`
-- [ ] Implement `run(agentPath, input, mode?, event?, output?)` function
-- [ ] Implement `replay(agentPath)` function
-- [ ] Implement `showTrace()` function
+- [ ] Create `src/core/cycle.ts` — `CycleRunner` class
+- [ ] Implement `run(agentPath, input, mode?, event?, output?)` method
+- [ ] Implement `replay(agentPath)` method
+- [ ] Implement `showTrace()` method
 - [ ] Implement KPI panel display
 - [ ] Implement stagnation detection
 - [ ] Implement time/token limit checks
 - [ ] Implement mandatory tool enforcement
 - [ ] Implement sensitive action confirmation
 - [ ] Implement trace file saving
+- [ ] Create `tests/core/cycle.test.ts`
 
 ---
 
@@ -435,6 +508,8 @@ function validateLlmResponse(plan: Plan, availableTools: Set<string>): string[] 
 - [ ] `npm test` passes (all tests)
 - [ ] No secrets in tracked files (`git ls-files | xargs grep -l "sk-"` returns empty)
 - [ ] `node --version` ≥ 20 and `npm test` passes
+- [ ] Every source file (except `*.types.ts` and `index.ts`) has a corresponding `*.test.ts`
+- [ ] `grep -r "^export function\|^export async function" src/` returns zero results (no standalone exported functions)
 
 ### 12.1 Type Safety
 
@@ -442,23 +517,30 @@ function validateLlmResponse(plan: Plan, availableTools: Set<string>): string[] 
 - [ ] Run `tsc --noEmit` — zero errors
 - [ ] Verify no `as` type assertions (except where absolutely necessary)
 
-### 12.2 Linting
+### 12.2 OOP Compliance
+
+- [ ] Verify zero standalone exported functions: `grep -r "^export function\|^export async function" src/`
+- [ ] Verify all runtime modules export classes
+- [ ] Verify no module-level singletons or global state
+
+### 12.3 Test-per-File Compliance
+
+- [ ] Verify every `src/<domain>/<name>.ts` has a `tests/<domain>/<name>.test.ts`
+- [ ] Exception: `*.types.ts` and `index.ts` files are exempt
+- [ ] Run `npm test` — all tests pass
+
+### 12.4 Linting
 
 - [ ] Run `npm run lint` — zero errors
 - [ ] Run `npm run format` — consistent formatting
 
-### 12.3 Testing
-
-- [ ] Run `npm test` — all tests pass
-- [ ] Verify external dependencies are mocked in all tests
-
-### 12.4 Secrets
+### 12.5 Secrets
 
 - [ ] Verify no secrets in committed files
 - [ ] Verify `.env` is in `.gitignore`
 - [ ] Verify `.env.example` has only placeholder values
 
-### 12.5 Node Compatibility
+### 12.6 Node Compatibility
 
 - [ ] Verify package.json engines field (>=20.0.0)
 - [ ] Test with Node 20
@@ -471,14 +553,14 @@ function validateLlmResponse(plan: Plan, availableTools: Set<string>): string[] 
 | ----------------- | ----------- | --------- | ------- |
 | 1 — Setup         | 11          | 11        | ✅ DONE |
 | 2 — Types         | 10          | 10        | ✅ DONE |
-| 3 — Core          | 4           | 4         | ✅ DONE |
-| 4 — LLM Provider  | 5           | 0         | PENDING |
-| 5 — Executor      | 4           | 0         | PENDING |
-| 6 — Tools         | 3           | 0         | PENDING |
-| 7 — Planner       | 3           | 0         | PENDING |
-| 8 — Telemetry     | 1           | 0         | PENDING |
-| 9 — CLI           | 2           | 0         | PENDING |
-| 10 — Cycle        | 1           | 0         | PENDING |
+| 3 — Core          | 8           | 8         | ✅ DONE |
+| 4 — LLM Provider  | 8           | 8         | ✅ DONE |
+| 5 — Executor      | 5           | 5         | ✅ DONE |
+| 6 — Tools         | 4           | 4         | ✅ DONE |
+| 7 — Planner       | 6           | 0         | PENDING |
+| 8 — Telemetry     | 2           | 0         | PENDING |
+| 9 — CLI           | 9           | 0         | PENDING |
+| 10 — Cycle        | 2           | 0         | PENDING |
 | 11 — Docs         | 4           | 0         | PENDING |
-| 12 — Verification | 5           | 0         | PENDING |
-| **TOTAL**         | **53**      | **25**    | **47%** |
+| 12 — Verification | 13          | 0         | PENDING |
+| **TOTAL**         | **82**      | **46**    | **56%** |

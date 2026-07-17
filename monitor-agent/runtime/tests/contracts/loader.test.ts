@@ -3,20 +3,23 @@
  *
  * Domain: contracts
  *
- * Tests the loadYamlFromMd() function with various .md file scenarios
+ * Tests the ContractLoader class with various .md file scenarios
  * and loadAllContracts() with a complete agent directory.
  */
 
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { loadYamlFromMd, loadAllContracts } from "../../src/contracts/loader.js";
+import { ContractLoader } from "../../src/contracts/loader.js";
+import { Logger } from "../../src/shared/logger.js";
 
 describe("loader", () => {
   let tmpDir: string;
+  let loader: ContractLoader;
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "agent-test-"));
+    loader = new ContractLoader(new Logger("error"));
   });
 
   afterEach(() => {
@@ -44,7 +47,7 @@ contrato_saida:
       const filePath = path.join(tmpDir, "test.md");
       fs.writeFileSync(filePath, md);
 
-      const result = loadYamlFromMd(filePath);
+      const result = loader.loadYamlFromMd(filePath);
       expect(result).toEqual({
         nome: "test-agent",
         descricao: "A test agent",
@@ -59,7 +62,7 @@ contrato_saida:
     });
 
     it("returns empty object when file does not exist", () => {
-      const result = loadYamlFromMd("/nonexistent/path/file.md");
+      const result = loader.loadYamlFromMd("/nonexistent/path/file.md");
       expect(result).toEqual({});
     });
 
@@ -67,7 +70,7 @@ contrato_saida:
       const filePath = path.join(tmpDir, "noyaml.md");
       fs.writeFileSync(filePath, "# Just a heading\n\nNo code block here.\n");
 
-      const result = loadYamlFromMd(filePath);
+      const result = loader.loadYamlFromMd(filePath);
       expect(result).toEqual({});
     });
 
@@ -78,7 +81,7 @@ first: true
       const filePath = path.join(tmpDir, "multi.md");
       fs.writeFileSync(filePath, md);
 
-      const result = loadYamlFromMd(filePath);
+      const result = loader.loadYamlFromMd(filePath);
       expect(result).toEqual({ first: true });
     });
 
@@ -95,7 +98,7 @@ limites:
       const filePath = path.join(tmpDir, "nested.md");
       fs.writeFileSync(filePath, md);
 
-      const result = loadYamlFromMd(filePath);
+      const result = loader.loadYamlFromMd(filePath);
       expect(result).toEqual({
         limites: {
           max_etapas: 10,
@@ -116,7 +119,7 @@ invalid: [unclosed
       const filePath = path.join(tmpDir, "bad.yaml");
       fs.writeFileSync(filePath, md);
 
-      const result = loadYamlFromMd(filePath);
+      const result = loader.loadYamlFromMd(filePath);
       expect(result).toEqual({});
     });
   });
@@ -251,7 +254,7 @@ resumo_final:
 
     it("loads all 9 contracts from a valid agent directory", () => {
       const agentDir = createAgentDir();
-      const contracts = loadAllContracts(agentDir);
+      const contracts = loader.loadAllContracts(agentDir);
 
       expect(contracts.agente.nome).toBe("test-agent");
       expect(contracts.agente.tipo).toBe("task_based");
@@ -270,7 +273,7 @@ resumo_final:
       // Remove the agent contract
       fs.unlinkSync(path.join(agentDir, "agent.md"));
 
-      expect(() => loadAllContracts(agentDir)).toThrow("Invalid contracts");
+      expect(() => loader.loadAllContracts(agentDir)).toThrow("Invalid contracts");
     });
   });
 });

@@ -3,11 +3,11 @@
  *
  * Domain: core
  *
- * Tests the createState() function with various contract configurations
+ * Tests the StateManager class with various contract configurations
  * and CLI override scenarios.
  */
 
-import { createState } from "../../src/core/state.js";
+import { StateManager } from "../../src/core/state.js";
 import type { AllContracts } from "../../src/contracts/contracts.types.js";
 
 /**
@@ -94,10 +94,16 @@ function createTestContracts(overrides?: Partial<AllContracts>): AllContracts {
 }
 
 describe("state", () => {
+  let stateManager: StateManager;
+
+  beforeEach(() => {
+    stateManager = new StateManager();
+  });
+
   describe("createState", () => {
     it("returns an AgentState with all required fields populated", () => {
       const contracts = createTestContracts();
-      const state = createState(contracts, "user input here");
+      const state = stateManager.createState(contracts, "user input here");
 
       expect(state.objetivo).toBe("Test the system");
       expect(state.entrada).toBe("user input here");
@@ -107,7 +113,7 @@ describe("state", () => {
 
     it("initializes step tracking to zero", () => {
       const contracts = createTestContracts();
-      const state = createState(contracts, "input");
+      const state = stateManager.createState(contracts, "input");
 
       expect(state.etapa).toBe(0);
       expect(state.chamadasFerramenta).toBe(0);
@@ -116,7 +122,7 @@ describe("state", () => {
 
     it("initializes execution state to empty/false", () => {
       const contracts = createTestContracts();
-      const state = createState(contracts, "input");
+      const state = stateManager.createState(contracts, "input");
 
       expect(state.historico).toEqual([]);
       expect(state.concluido).toBe(false);
@@ -127,14 +133,14 @@ describe("state", () => {
 
     it("initializes token usage to zero", () => {
       const contracts = createTestContracts();
-      const state = createState(contracts, "input");
+      const state = stateManager.createState(contracts, "input");
 
       expect(state.tokensConsumidos).toEqual({ prompt: 0, completion: 0, total: 0 });
     });
 
     it("extracts limits from regras.md contract", () => {
       const contracts = createTestContracts();
-      const state = createState(contracts, "input");
+      const state = stateManager.createState(contracts, "input");
 
       expect(state.limits.maxEtapas).toBe(10);
       expect(state.limits.semProgresso).toBe(3);
@@ -148,14 +154,14 @@ describe("state", () => {
           acoes_sensiveis: ["delete_file", "send_email"],
         },
       });
-      const state = createState(contracts, "input");
+      const state = stateManager.createState(contracts, "input");
 
       expect(state.acoesSensiveis).toEqual(["delete_file", "send_email"]);
     });
 
     it("uses CLI mode override for agent type", () => {
       const contracts = createTestContracts();
-      const state = createState(contracts, "input", "interactive");
+      const state = stateManager.createState(contracts, "input", "interactive");
 
       expect(state.tipoAgente).toBe("interactive");
     });
@@ -167,14 +173,14 @@ describe("state", () => {
           tipo: "goal_oriented",
         },
       });
-      const state = createState(contracts, "input", undefined);
+      const state = stateManager.createState(contracts, "input", undefined);
 
       expect(state.tipoAgente).toBe("goal_oriented");
     });
 
     it("sets evento from the event parameter", () => {
       const contracts = createTestContracts();
-      const state = createState(contracts, "input", undefined, "user-clicked-button");
+      const state = stateManager.createState(contracts, "input", undefined, "user-clicked-button");
 
       expect(state.evento).toBe("user-clicked-button");
     });
@@ -189,7 +195,7 @@ describe("state", () => {
           },
         },
       });
-      const state = createState(contracts, "input");
+      const state = stateManager.createState(contracts, "input");
 
       expect(state.limits.limitesPorFerramenta).toEqual({ search: 5, api_call: 3 });
       expect(state.limits.maxChamadasFerramenta).toBe(8);
@@ -197,8 +203,8 @@ describe("state", () => {
 
     it("returns a fresh object on each call (no shared references)", () => {
       const contracts = createTestContracts();
-      const state1 = createState(contracts, "input1");
-      const state2 = createState(contracts, "input2");
+      const state1 = stateManager.createState(contracts, "input1");
+      const state2 = stateManager.createState(contracts, "input2");
 
       expect(state1).not.toBe(state2);
       expect(state1.entrada).toBe("input1");
